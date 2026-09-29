@@ -1,0 +1,580 @@
+---
+// ProjectModal.astro
+// Panel deslizante que muestra el detalle completo de un proyecto.
+// Lee todos los proyectos desde las Content Collections y arma un modal por cada uno,
+// que se activa cuando el usuario clickea una tarjeta en la galería.
+
+import { getCollection, render } from 'astro:content';
+
+// Obtener todos los proyectos activos, ordenados
+const allProjects = await getCollection('projects', ({ data }) => data.draft !== true);
+const projects = allProjects.sort((a, b) => a.data.order - b.data.order);
+
+// Etiquetas de categoría en español
+const categoryLabels: Record<string, string> = {
+  residential: 'Residencial',
+  commercial: 'Comercial',
+  renovation: 'Remodelación',
+};
+
+// Pre-renderizar el contenido Markdown de cada proyecto
+const projectsWithContent = await Promise.all(
+  projects.map(async (project) => {
+    const { Content } = await render(project);
+    return { project, Content };
+  })
+);
+---
+
+<!-- Contenedor del modal (oculto por defecto) -->
+<div class="project-modal" id="projectModal">
+  
+  <!-- Fondo oscuro con blur (click para cerrar) -->
+  <div class="modal-backdrop" id="modalBackdrop"></div>
+  
+  <!-- Panel lateral con el contenido -->
+  <div class="modal-panel" id="modalPanel">
+    
+    {projectsWithContent.map(({ project, Content }, index) => {
+      const data = project.data;
+      const categoryLabel = categoryLabels[data.category] || data.category;
+      const progress = `${String(index + 1).padStart(2, '0')} / ${String(projects.length).padStart(2, '0')}`;
+      
+      return (
+        <article 
+          class="modal-project" 
+          data-slug={project.id}
+          data-index={index}
+        >
+          <!-- Header sticky con botón cerrar y progreso -->
+          <div class="modal-close">
+            <button class="modal-close-btn modal-close-trigger">
+              <span class="x">✕</span>
+              <span>Volver al portfolio</span>
+            </button>
+            <div class="modal-progress">{progress}</div>
+          </div>
+          
+          <!-- Imagen de portada -->
+          <div class="modal-cover">
+            <img src={data.cover} alt={data.title} />
+          </div>
+          
+          <!-- Encabezado del proyecto -->
+          <div class="modal-header">
+            <div class="modal-category">{categoryLabel} · {data.location}</div>
+            <h2 class="modal-title">{data.title}</h2>
+            {data.subtitle && <div class="modal-subtitle">{data.subtitle}</div>}
+          </div>
+          
+          <!-- Contenido: metadatos + narrativa -->
+          <div class="modal-content">
+            
+            <!-- Sidebar con metadatos -->
+            <aside class="modal-meta">
+              <div class="meta-item">
+                <h5>Ubicación</h5>
+                <p>{data.location}</p>
+              </div>
+              <div class="meta-item">
+                <h5>Año</h5>
+                <p>{data.year}</p>
+              </div>
+              {data.area && (
+                <div class="meta-item">
+                  <h5>Superficie</h5>
+                  <p>{data.area}</p>
+                </div>
+              )}
+              <div class="meta-item">
+                <h5>Tipología</h5>
+                <p>{data.typology}</p>
+              </div>
+              <div class="meta-item">
+                <h5>Estado</h5>
+                <p>{data.status}</p>
+              </div>
+            </aside>
+            
+            <!-- Narrativa (viene del Markdown) -->
+            <div class="modal-narrative">
+              <Content />
+            </div>
+            
+          </div>
+          
+          <!-- Galería de imágenes -->
+          {data.gallery.length > 0 && (
+            <div class="modal-gallery">
+              <div class="modal-gallery-title">Galería del proyecto</div>
+              <div class="gallery-grid">
+                {data.gallery.map((src, i) => (
+                  <img 
+                    src={src} 
+                    alt={`${data.title} - Foto ${i + 1}`}
+                    class={i === 0 ? 'full' : ''}
+                    loading="lazy"
+                  />
+                ))}
+                {data.video && (
+                  <video class="gallery-video full" autoplay muted loop playsinline preload="metadata">
+                    <source src={data.video} type="video/mp4" />
+                  </video>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <!-- Materiales -->
+          {data.materials.length > 0 && (
+            <div class="modal-materials">
+              <h4>Materiales & terminaciones</h4>
+              <ul class="materials-list">
+                {data.materials.map(m => (
+                  <li>
+                    <span>{m.name}</span>
+                    <span>{m.description}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          <!-- Navegación anterior/siguiente -->
+          <div class="modal-nav">
+            <button class="modal-nav-btn modal-prev" data-target-index={(index - 1 + projects.length) % projects.length}>
+              <div class="modal-nav-label">← Proyecto anterior</div>
+              <div class="modal-nav-name">
+                {projects[(index - 1 + projects.length) % projects.length].data.title}
+              </div>
+            </button>
+            <button class="modal-nav-btn modal-next" data-target-index={(index + 1) % projects.length}>
+              <div class="modal-nav-label">Siguiente proyecto →</div>
+              <div class="modal-nav-name">
+                {projects[(index + 1) % projects.length].data.title}
+              </div>
+            </button>
+          </div>
+          
+        </article>
+      );
+    })}
+    
+  </div>
+</div>
+
+<script>
+  // ============================================
+  // LÓGICA DEL MODAL
+  // ============================================
+  const modal = document.getElementById('projectModal');
+  const modalPanel = document.getElementById('modalPanel');
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const modalProjects = document.querySelectorAll<HTMLElement>('.modal-project');
+  
+  // Ocultar todos los proyectos al inicio
+  modalProjects.forEach(p => p.style.display = 'none');
+  
+  function openProjectByIndex(index: number) {
+    // Ocultar todos y mostrar solo el elegido
+    modalProjects.forEach(p => p.style.display = 'none');
+    const target = modalProjects[index];
+    if (target) target.style.display = 'block';
+    
+    // Abrir el modal
+    modal?.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    
+    // Scroll al inicio del panel
+    if (modalPanel) modalPanel.scrollTop = 0;
+  }
+  
+  function closeModal() {
+    modal?.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+  
+  // Abrir modal al clickear una tarjeta de proyecto
+  document.querySelectorAll<HTMLElement>('.project').forEach((card, i) => {
+    card.addEventListener('click', () => openProjectByIndex(i));
+  });
+  
+  // Cerrar con el botón, con el fondo oscuro, o con Escape
+  document.querySelectorAll('.modal-close-trigger').forEach(btn => {
+    btn.addEventListener('click', closeModal);
+  });
+  modalBackdrop?.addEventListener('click', closeModal);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && modal?.classList.contains('active')) closeModal();
+  });
+  
+  // Navegación entre proyectos con los botones anterior/siguiente
+  document.querySelectorAll<HTMLButtonElement>('.modal-nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetIndex = parseInt(btn.dataset.targetIndex || '0');
+      openProjectByIndex(targetIndex);
+    });
+  });
+  
+  // Navegación con flechas del teclado
+  document.addEventListener('keydown', e => {
+    if (!modal?.classList.contains('active')) return;
+    
+    const visible = Array.from(modalProjects).findIndex(p => p.style.display === 'block');
+    if (visible === -1) return;
+    
+    if (e.key === 'ArrowLeft') {
+      const prevIndex = (visible - 1 + modalProjects.length) % modalProjects.length;
+      openProjectByIndex(prevIndex);
+    }
+    if (e.key === 'ArrowRight') {
+      const nextIndex = (visible + 1) % modalProjects.length;
+      openProjectByIndex(nextIndex);
+    }
+  });
+</script>
+
+<style>
+  /* Contenedor global del modal */
+  .project-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  
+  .project-modal.active {
+    pointer-events: auto;
+    opacity: 1;
+  }
+  
+  /* Fondo oscuro con blur */
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(26,26,26,0.45);
+    backdrop-filter: blur(4px);
+    cursor: pointer;
+  }
+  
+  /* Panel deslizante desde la derecha */
+  .modal-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 75%;
+    max-width: 1200px;
+    background: #FFFFFF;
+    overflow-y: auto;
+    transform: translateX(100%);
+    transition: transform 0.6s cubic-bezier(0.7, 0, 0.3, 1);
+    box-shadow: -20px 0 60px rgba(0,0,0,0.15);
+  }
+  
+  .project-modal.active .modal-panel {
+    transform: translateX(0);
+  }
+  
+  /* Header sticky con cerrar + progreso */
+  .modal-close {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #FFFFFF;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 28px 48px;
+    border-bottom: 1px solid #E8E4DE;
+  }
+  
+  .modal-close-btn {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    cursor: pointer;
+    color: #1A1A1A;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    transition: opacity 0.3s;
+  }
+  
+  .modal-close-btn:hover { opacity: 0.6; }
+  
+  .modal-close-btn .x {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #1A1A1A;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  
+  .modal-progress {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: #8B8680;
+    font-family: var(--font-serif);
+    font-style: italic;
+  }
+  
+  /* Portada del proyecto */
+  .modal-cover {
+    width: 100%;
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    background: #F5F2ED;
+  }
+  
+  .modal-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  /* Encabezado del proyecto */
+  .modal-header {
+    padding: 80px 48px 60px;
+    border-bottom: 1px solid #E8E4DE;
+  }
+  
+  .modal-category {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #8B8680;
+    margin-bottom: 24px;
+  }
+  
+  .modal-title {
+    font-family: var(--font-serif);
+    font-size: clamp(40px, 5vw, 72px);
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+    color: #1A1A1A;
+  }
+  
+  .modal-subtitle {
+    font-size: 16px;
+    color: #8B8680;
+    font-style: italic;
+    font-family: var(--font-serif);
+  }
+  
+  /* Metadatos + narrativa */
+  .modal-content {
+    padding: 60px 48px;
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 80px;
+    border-bottom: 1px solid #E8E4DE;
+  }
+  
+  .modal-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  
+  .meta-item h5 {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #8B8680;
+    margin-bottom: 8px;
+    font-weight: 400;
+  }
+  
+  .meta-item p {
+    font-size: 15px;
+    color: #1A1A1A;
+    line-height: 1.5;
+  }
+  
+  .modal-narrative {
+    font-size: 17px;
+    line-height: 1.8;
+    color: #1A1A1A;
+  }
+  
+  .modal-narrative :global(p) {
+    margin-bottom: 24px;
+  }
+  
+  /* Letra capital decorativa en el primer párrafo */
+  .modal-narrative :global(p:first-child::first-letter) {
+    font-family: var(--font-serif);
+    font-size: 64px;
+    float: left;
+    line-height: 0.9;
+    margin: 4px 12px 0 0;
+    font-weight: 300;
+  }
+  
+  /* Galería */
+  .modal-gallery {
+    padding: 60px 48px;
+  }
+  
+  .modal-gallery-title {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #8B8680;
+    margin-bottom: 40px;
+  }
+  
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  
+  .gallery-grid img {
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    cursor: zoom-in;
+    transition: opacity 0.3s;
+  }
+  
+  .gallery-grid img.full,
+  .gallery-video.full {
+    grid-column: span 2;
+    aspect-ratio: 16/9;
+  }
+  
+  .gallery-grid img:hover {
+    opacity: 0.85;
+  }
+  
+  .gallery-video {
+    width: 100%;
+    object-fit: cover;
+    display: block;
+    background: #1A1A1A;
+  }
+  
+  /* Materiales */
+  .modal-materials {
+    padding: 60px 48px;
+    background: #F5F2ED;
+  }
+  
+  .modal-materials h4 {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #8B8680;
+    margin-bottom: 30px;
+  }
+  
+  .materials-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px 60px;
+    max-width: 700px;
+    list-style: none;
+    padding: 0;
+  }
+  
+  .materials-list li {
+    padding: 14px 0;
+    border-bottom: 1px solid #E8E4DE;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  
+  .materials-list li span:last-child {
+    color: #8B8680;
+    font-style: italic;
+    font-family: var(--font-serif);
+    text-align: right;
+  }
+  
+  /* Navegación anterior/siguiente */
+  .modal-nav {
+    padding: 60px 48px 80px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #E8E4DE;
+    gap: 40px;
+  }
+  
+  .modal-nav-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    padding: 0;
+  }
+  
+  .modal-nav-label {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #8B8680;
+    margin-bottom: 8px;
+  }
+  
+  .modal-nav-name {
+    font-family: var(--font-serif);
+    font-size: 24px;
+    font-weight: 300;
+    color: #1A1A1A;
+    transition: opacity 0.3s;
+  }
+  
+  .modal-nav-btn:hover .modal-nav-name {
+    opacity: 0.6;
+  }
+  
+  .modal-next {
+    text-align: right;
+  }
+  
+  /* MOBILE */
+  @media (max-width: 968px) {
+    .modal-panel { width: 100%; }
+    .modal-close { padding: 20px 24px; }
+    .modal-header { padding: 50px 24px 40px; }
+    .modal-title { font-size: clamp(36px, 9vw, 52px); }
+    .modal-content { 
+      grid-template-columns: 1fr; 
+      gap: 40px; 
+      padding: 40px 24px;
+    }
+    .modal-narrative { font-size: 15px; line-height: 1.75; }
+    .modal-narrative :global(p:first-child::first-letter) { font-size: 52px; }
+    .modal-gallery { padding: 40px 24px; }
+    .gallery-grid { grid-template-columns: 1fr; gap: 12px; }
+    .gallery-grid img.full,
+    .gallery-video.full { grid-column: span 1; }
+    .modal-materials { padding: 40px 24px; }
+    .materials-list { grid-template-columns: 1fr; gap: 0; }
+    .modal-nav { 
+      padding: 40px 24px 60px;
+      flex-direction: column;
+      gap: 30px;
+      align-items: flex-start;
+    }
+    .modal-next { text-align: left; }
+    .modal-nav-name { font-size: 22px; }
+  }
+</style>

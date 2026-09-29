@@ -1,0 +1,85 @@
+---
+import '../styles/global.css';
+import Navigation from '../components/Navigation.astro';
+import Footer from '../components/Footer.astro';
+import WhatsAppButton from '../components/WhatsAppButton.astro';
+
+const {
+  title = 'Estudio ODD — Arquitectura con intención',
+  description = 'Estudio de arquitectura en Bella Vista, Corrientes. Diseñamos residencias, locales comerciales y remodelaciones. Dirigido por Joaquín Oddone y su padre, ambos arquitectos.',
+  image = '/images/og/preview.jpg',
+} = Astro.props;
+
+// URL canónica del sitio (útil cuando ya tenés dominio)
+const canonicalURL = new URL(Astro.url.pathname, Astro.site || 'https://estudiodd.netlify.app');
+const socialImage = new URL(image, Astro.site || 'https://estudiodd.netlify.app');
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+    
+    <!-- SEO Básico -->
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="author" content="Estudio ODD" />
+    <link rel="canonical" href={canonicalURL} />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    
+    <!-- Open Graph (WhatsApp, Facebook, LinkedIn) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Estudio ODD" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={socialImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:locale" content="es_AR" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={socialImage} />
+    
+    <!-- Datos estructurados para Google (Schema.org) -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "ArchitectAndDesign",
+      "name": "Estudio ODD",
+      "description": description,
+      "image": socialImage.toString(),
+      "url": canonicalURL.toString(),
+      "telephone": "+543777312343",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Córdoba 656",
+        "addressLocality": "Bella Vista",
+        "addressRegion": "Corrientes",
+        "addressCountry": "AR"
+      },
+      "sameAs": [
+        "https://instagram.com/estudiodd"
+      ]
+    })} />
+    
+    <!-- Preload de tipografías -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Tema del navegador (barra de dirección en mobile) -->
+    <meta name="theme-color" content="#1A1A1A" />
+  </head>
+  <body>
+    <Navigation />
+    <slot />
+    <Footer />
+    <WhatsAppButton />
+  </body>
+</html>

@@ -1,0 +1,417 @@
+---
+// Cinematic.astro
+// Sección de scroll cinematográfico DINÁMICA.
+// Toma automáticamente las 3 primeras obras según su `order` en las Content Collections
+// y las muestra como capítulos cinematográficos. Al reordenar en los .md, la sección se
+// actualiza sola.
+
+import { getCollection } from 'astro:content';
+
+// Traer todos los proyectos activos y ordenarlos
+const allProjects = await getCollection('projects', ({ data }) => data.draft !== true);
+const sortedProjects = allProjects.sort((a, b) => a.data.order - b.data.order);
+
+// Tomar las 3 primeras
+const featured = sortedProjects.slice(1, 4);
+
+// Textos poéticos por categoría (opcional: si querés cambiar la frase según el tipo de obra)
+const categoryTexts: Record<string, { label: string, title: string, text: string }> = {
+  residential: {
+    label: 'Residencial',
+    title: 'La luz como <em>primer material.</em>',
+    text: 'Diseñamos viviendas donde la luz natural define el carácter de cada espacio. La materia es solo el vehículo.',
+  },
+  commercial: {
+    label: 'Comercial',
+    title: 'Espacios que <em>reciben.</em>',
+    text: 'Locales y espacios de trabajo pensados para acompañar la actividad que alojan, no para imponerse a ella.',
+  },
+  renovation: {
+    label: 'Remodelación',
+    title: 'Reescribir lo <em>existente.</em>',
+    text: 'Intervenciones que dialogan con la historia del edificio, sumando sin borrar lo que ya estaba.',
+  },
+};
+
+// Armar las escenas con datos reales de cada proyecto
+const scenes = featured.map((project, index) => {
+  const category = project.data.category;
+  const chapter = String(index + 1).padStart(2, '0');
+  const catData = categoryTexts[category] || categoryTexts.residential;
+  
+  return {
+    image: project.data.cover,
+    label: `Capítulo ${chapter} — ${catData.label}`,
+    title: catData.title,
+    text: catData.text,
+    projectTitle: project.data.title,
+  };
+});
+---
+
+<section class="cinematic" id="cinematic" data-nav-theme="dark">
+  <div class="cinematic-sticky">
+    
+    {scenes.map((scene, i) => (
+      <div class="cinematic-scene" data-scene={i}>
+        <div 
+          class="cinematic-scene-bg" 
+          style={`background-image: url('${scene.image}')`}
+        ></div>
+        <div class="cinematic-text">
+          <div class="label">{scene.label}</div>
+          <h2 set:html={scene.title}></h2>
+          <p>{scene.text}</p>
+        </div>
+      </div>
+    ))}
+    
+    <div class="cinematic-progress">
+      {scenes.map((_, i) => (
+        <div class:list={['cinematic-progress-dot', i === 0 ? 'active' : '']}></div>
+      ))}
+    </div>
+    
+  </div>
+</section>
+
+<button class="gyro-hint" id="gyroHint">
+  <svg viewBox="0 0 24 24">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+  </svg>
+  <span>Activar inmersión 360°</span>
+</button>
+
+<script>
+  const cinematic = document.getElementById('cinematic');
+  const scenes = document.querySelectorAll<HTMLElement>('.cinematic-scene');
+  const dots = document.querySelectorAll<HTMLElement>('.cinematic-progress-dot');
+  const totalScenes = scenes.length;
+  
+  function updateCinematic() {
+    if (!cinematic) return;
+    const rect = cinematic.getBoundingClientRect();
+    const total = cinematic.offsetHeight - window.innerHeight;
+    let progress = -rect.top / total;
+    progress = Math.max(0, Math.min(1, progress));
+    
+    const sceneProgress = progress * totalScenes;
+    const activeScene = Math.min(Math.floor(sceneProgress), totalScenes - 1);
+    
+    scenes.forEach((scene, i) => {
+      const bg = scene.querySelector<HTMLElement>('.cinematic-scene-bg');
+      const text = scene.querySelector<HTMLElement>('.cinematic-text');
+      const localProgress = sceneProgress - i;
+      
+      if (localProgress < -0.2 || localProgress > 1.2) {
+        scene.style.opacity = '0';
+        return;
+      }
+      
+      let opacity = 0;
+      if (localProgress < 0.3) opacity = localProgress / 0.3;
+      else if (localProgress < 0.7) opacity = 1;
+      else if (localProgress < 1) opacity = 1 - ((localProgress - 0.7) / 0.3);
+      
+      opacity = Math.max(0, Math.min(1, opacity));
+      scene.style.opacity = String(opacity);
+      
+      if (bg) {
+                const scale = 1.0 + (localProgress * 0.08);
+        bg.style.transform = `scale(${scale})`;
+      }
+      
+      if (text) {
+        const textY = (localProgress - 0.5) * -30;
+        text.style.transform = `translateY(${textY}px)`;
+      }
+    });
+    
+    dots.forEach((dot, i) => {
+      dot.classList.toggle('active', i === activeScene);
+    });
+  }
+  
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        updateCinematic();
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+  updateCinematic();
+  
+  // Giroscopio (mobile 360°)
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const gyroHint = document.getElementById('gyroHint');
+  
+  let gyroX = 0, gyroY = 0;
+  let targetGyroX = 0, targetGyroY = 0;
+  let gyroEnabled = false;
+  let calibrationBeta: number | null = null;
+  let calibrationGamma: number | null = null;
+  
+  function handleOrientation(event: DeviceOrientationEvent) {
+    if (event.beta === null || event.gamma === null) return;
+    
+    if (calibrationBeta === null) {
+      calibrationBeta = event.beta;
+      calibrationGamma = event.gamma;
+    }
+    
+    let deltaBeta = event.beta - calibrationBeta;
+    let deltaGamma = event.gamma - calibrationGamma;
+    
+    deltaBeta = Math.max(-30, Math.min(30, deltaBeta)) / 30;
+    deltaGamma = Math.max(-30, Math.min(30, deltaGamma)) / 30;
+    
+    targetGyroY = deltaBeta;
+    targetGyroX = deltaGamma;
+  }
+  
+  function enableGyro() {
+    // @ts-ignore
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      // @ts-ignore
+      DeviceOrientationEvent.requestPermission()
+        .then((response: string) => {
+          if (response === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation);
+            gyroEnabled = true;
+            if (gyroHint) {
+              gyroHint.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg><span>Inmersión activada</span>';
+              setTimeout(() => gyroHint.classList.remove('visible'), 1800);
+            }
+          }
+        })
+        .catch(() => {});
+    } else if (window.DeviceOrientationEvent) {
+      window.addEventListener('deviceorientation', handleOrientation);
+      gyroEnabled = true;
+      if (gyroHint) {
+        gyroHint.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg><span>Inmersión activada</span>';
+        setTimeout(() => gyroHint.classList.remove('visible'), 1800);
+      }
+    }
+  }
+  
+  if (isMobile && window.DeviceOrientationEvent && gyroHint) {
+    setTimeout(() => gyroHint.classList.add('visible'), 1000);
+    gyroHint.addEventListener('click', enableGyro);
+  }
+  
+  function animateGyro() {
+    gyroX += (targetGyroX - gyroX) * 0.08;
+    gyroY += (targetGyroY - gyroY) * 0.08;
+    
+    if (gyroEnabled) {
+      document.querySelectorAll<HTMLElement>('.cinematic-scene-bg').forEach(bg => {
+        const offsetX = -gyroX * 6;
+        const offsetY = -gyroY * 6;
+        bg.style.backgroundPosition = `${50 + offsetX}% ${50 + offsetY}%`;
+      });
+    }
+    
+    requestAnimationFrame(animateGyro);
+  }
+  animateGyro();
+  
+  if (cinematic && gyroHint) {
+    const cinematicObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting && gyroHint.classList.contains('visible')) {
+          gyroHint.classList.remove('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+    cinematicObserver.observe(cinematic);
+  }
+</script>
+
+<style>
+  .cinematic {
+    position: relative;
+    height: 400vh;
+    background: #1A1A1A;
+  }
+  
+  .cinematic-sticky {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .cinematic-scene {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    will-change: opacity, transform;
+  }
+  
+  .cinematic-scene-bg {
+    position: absolute;
+    top: -4%;
+    left: -4%;
+    width: 108%;
+    height: 108%;
+    background-size: cover;
+    background-position: center;
+    transform: scale(1);
+    will-change: transform;
+    transition: background-position 0.15s ease-out;
+  }
+  
+  .cinematic-scene-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(0,0,0,0.3) 0%,
+      rgba(0,0,0,0.1) 50%,
+      rgba(0,0,0,0.6) 100%
+    );
+  }
+  
+  .cinematic-text {
+    position: relative;
+    z-index: 2;
+    color: #FFFFFF;
+    text-align: center;
+    padding: 0 48px;
+    max-width: 900px;
+  }
+  
+  .cinematic-text .label {
+    font-size: 11px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-bottom: 28px;
+  }
+  
+  .cinematic-text h2 {
+    font-family: var(--font-serif);
+    font-size: clamp(48px, 7vw, 100px);
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    margin-bottom: 28px;
+  }
+  
+  :global(.cinematic-text h2 em) {
+    font-style: italic;
+  }
+  
+  .cinematic-text p {
+    font-size: 17px;
+    line-height: 1.6;
+    max-width: 540px;
+    margin: 0 auto;
+    opacity: 0.9;
+    font-weight: 300;
+  }
+  
+  .cinematic-progress {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    z-index: 3;
+  }
+  
+  .cinematic-progress-dot {
+    width: 32px;
+    height: 1px;
+    background: rgba(255,255,255,0.3);
+    transition: background 0.4s;
+  }
+  
+  .cinematic-progress-dot.active {
+    background: #FFFFFF;
+  }
+  
+  .gyro-hint {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(26,26,26,0.95);
+    color: #FFFFFF;
+    padding: 16px 26px;
+    border-radius: 40px;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    z-index: 9500;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+    display: none;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.35);
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    font-family: inherit;
+  }
+  
+  .gyro-hint.visible {
+    display: flex;
+    animation: gyroPulse 2.5s ease-in-out infinite;
+  }
+  
+  .gyro-hint svg {
+    width: 16px;
+    height: 16px;
+    fill: #FFFFFF;
+  }
+  
+  @keyframes gyroPulse {
+    0%, 100% { transform: translateX(-50%) translateY(0) scale(1); }
+    50% { transform: translateX(-50%) translateY(-6px) scale(1.02); }
+  }
+  
+  @media (max-width: 968px) {
+    .cinematic-text {
+      padding: 0 32px;
+    }
+    
+    .cinematic-text h2 {
+      font-size: clamp(40px, 11vw, 60px);
+      line-height: 0.95;
+    }
+    
+    .cinematic-text p {
+      font-size: 15px;
+      line-height: 1.55;
+      max-width: 320px;
+    }
+    
+    .cinematic-text .label {
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      margin-bottom: 24px;
+    }
+    
+    .cinematic-progress {
+      bottom: 32px;
+      gap: 10px;
+    }
+    
+    .cinematic-progress-dot {
+      width: 24px;
+    }
+  }
+</style>

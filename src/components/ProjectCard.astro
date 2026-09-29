@@ -1,0 +1,68 @@
+---
+// ProjectCard.astro
+// Tarjeta individual de un proyecto en la galería de obras.
+// Recibe los datos del proyecto como prop y los renderiza con imagen + título.
+
+// Definir qué props recibe el componente
+interface Props {
+  slug: string;              // identificador único (ej: "casa-typ")
+  title: string;             // "Casa TyP"
+  category: string;          // "residential" | "commercial" | "renovation"
+  location: string;          // "Bella Vista"
+  year: number;              // 2026
+  cover: string;             // ruta a la imagen de portada
+}
+
+const { slug, title, category, location, year, cover } = Astro.props;
+
+// Traducir categoría al español para mostrar
+const categoryLabels: Record<string, string> = {
+  residential: 'Residencial',
+  commercial: 'Comercial',
+  renovation: 'Remodelación',
+};
+const categoryLabel = categoryLabels[category] || category;
+---
+
+<article 
+  class="project group cursor-pointer" 
+  data-category={category}
+  data-slug={slug}
+>
+  <!-- Imagen del proyecto -->
+  <div class="project-image overflow-hidden bg-[#F5F2ED]">
+    <img 
+      src={cover} 
+      alt={title}
+      loading="lazy"
+      class="w-full h-full object-cover transition-transform duration-[1.2s] ease-out group-hover:scale-[1.04]"
+    />
+  </div>
+  
+  <!-- Info debajo de la imagen -->
+  <div class="mt-5 flex justify-between items-baseline">
+    <div class="flex flex-col gap-1">
+      <div class="text-2xl font-light tracking-tight" style="font-family: var(--font-serif);">
+        {title}
+      </div>
+      <div class="text-[11px] tracking-[0.2em] uppercase text-[#8B8680]">
+        {categoryLabel} · {location}
+      </div>
+    </div>
+    <div class="text-xs text-[#8B8680] tracking-wider">
+      {year}
+    </div>
+  </div>
+</article>
+
+<style>
+  .project-image {
+    aspect-ratio: 4/5;
+    width: 100%;
+  }
+  
+  /* Para los proyectos "grandes" en el grid editorial */
+  .project.wide .project-image {
+    aspect-ratio: 16/10;
+  }
+</style>

@@ -1,0 +1,44 @@
+/* Los @import van SIEMPRE al inicio, antes de cualquier otra regla */
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300&family=Inter:wght@300;400;500&display=swap');
+
+/* ============================================ */
+/* THEME - Variables globales */
+/* ============================================ */
+@theme {
+  --color-white-pure: #FFFFFF;
+  --color-off-white: #F5F2ED;
+  --color-charcoal: #1A1A1A;
+  --color-gray-warm: #8B8680;
+  --color-light-gray: #E8E4DE;
+  
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, sans-serif;
+}
+
+/* ============================================ */
+/* RESET Y BASE */
+/* ============================================ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-charcoal);
+  background: var(--color-white-pure);
+  font-weight: 300;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+.serif {
+  font-family: var(--font-serif);
+  font-weight: 300;
+}
