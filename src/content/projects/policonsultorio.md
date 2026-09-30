@@ -1,6 +1,8 @@
 ---
 title: "Policonsultorio"
 subtitle: "Un espacio de salud diseñado desde la calma."
+cinematicTitle: "Espacios que <em>reciben.</em>"
+cinematicText: "Un policonsultorio pensado desde la calma. Una arquitectura que acompaña, no que impone."
 category: "commercial"
 location: "Bella Vista, Corrientes"
 year: 2026

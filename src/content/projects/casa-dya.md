@@ -1,6 +1,8 @@
 ---
 title: "Casa DyA"
 subtitle: "Una vivienda unifamiliar en el litoral correntino."
+cinematicTitle: "El terreno como <em>punto de partida.</em>"
+cinematicText: "El clima y la vegetación existente marcaron cada decisión: cubiertas amplias, aberturas protegidas, materialidad honesta."
 category: "residential"
 location: "Bella Vista, Corrientes"
 year: 2025

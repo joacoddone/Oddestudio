@@ -39,11 +39,16 @@ const scenes = featured.map((project, index) => {
   const chapter = String(index + 1).padStart(2, '0');
   const catData = categoryTexts[category] || categoryTexts.residential;
   
+  // Priorizar textos personalizados del .md si existen,
+  // sino usar los genéricos por categoría
+  const title = project.data.cinematicTitle || catData.title;
+  const text = project.data.cinematicText || catData.text;
+  
   return {
     image: project.data.cover,
-    label: `Capítulo ${chapter} — ${catData.label}`,
-    title: catData.title,
-    text: catData.text,
+    label: `Capítulo ${chapter} — ${project.data.title}`,
+    title: title,
+    text: text,
     projectTitle: project.data.title,
   };
 });

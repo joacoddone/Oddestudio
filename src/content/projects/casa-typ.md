@@ -1,6 +1,8 @@
 ---
 title: "Casa TyP"
 subtitle: "Una vivienda contemporánea abierta al paisaje."
+cinematicTitle: "La luz como <em>primer material.</em>"
+cinematicText: "Una vivienda donde la orientación, la galería y la madera trabajan juntas para atrapar el atardecer del litoral."
 category: "residential"
 location: "Bella Vista, Corrientes"
 year: 2026

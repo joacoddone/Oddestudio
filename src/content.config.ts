@@ -16,6 +16,9 @@ const projects = defineCollection({
     // Info básica
     title: z.string(),
     subtitle: z.string().optional(),
+        // Textos para la sección cinematográfica (opcionales)
+    cinematicTitle: z.string().optional(),
+    cinematicText: z.string().optional(),
     category: z.enum(['residential', 'commercial', 'renovation']),
     
     // Metadatos del proyecto
