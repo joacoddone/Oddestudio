@@ -11,7 +11,7 @@ cover: "/images/projects/casa-sn/cover.jpg"
 gallery: []
 materials: []
 featured: true
-order: 3
+order: 5
 ---
 
 Casa S-N se proyecta en un lote del norte correntino donde el clima y el paisaje marcan las decisiones de diseño. La galería semicubierta funciona como filtro entre el sol intenso del litoral y los espacios interiores, ampliando la vida doméstica hacia el jardín.
