@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import Navigation from '../components/Navigation.astro';
+import SplashScreen from '../components/SplashScreen.astro';
 import Footer from '../components/Footer.astro';
 import WhatsAppButton from '../components/WhatsAppButton.astro';
 
@@ -77,6 +78,7 @@ const socialImage = new URL(image, Astro.site || 'https://estudiodd.netlify.app'
     <meta name="theme-color" content="#1A1A1A" />
   </head>
   <body>
+    <SplashScreen />
     <Navigation />
     <slot />
     <Footer />

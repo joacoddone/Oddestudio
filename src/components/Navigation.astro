@@ -16,7 +16,10 @@ const menuItems = [
 
 <nav id="mainNav" class="main-nav nav-dark">
   <div class="nav-inner">
-    <a href="/" class="logo">Estudio ODD</a>
+    <a href="/" class="logo" aria-label="Estudio ODD">
+      <img src="/logo-dark.svg" alt="Estudio ODD" class="logo-img logo-img--dark" width="120" height="68" />
+      <img src="/logo-light.svg" alt="Estudio ODD" class="logo-img logo-img--light" width="120" height="68" />
+    </a>
     
     <ul class="nav-links" id="navLinks">
       {menuItems.map(item => (
@@ -115,20 +118,43 @@ const menuItems = [
   
   /* LOGO como pastilla de vidrio */
   .logo {
-    font-family: var(--font-serif);
-    font-size: 18px;
-    letter-spacing: 0.05em;
     text-decoration: none;
-    transition: color 0.5s ease, background 0.5s ease, box-shadow 0.5s ease;
+    transition: opacity 0.3s ease;
     flex-shrink: 0;
-    padding: 12px 22px;
+    padding: 8px 16px;
     border-radius: 100px;
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     position: relative;
     pointer-events: auto;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     line-height: 1;
+  }
+
+  .logo:hover { opacity: 0.75; }
+
+  .logo-img {
+    display: block;
+    height: 36px;
+    width: auto;
+    object-fit: contain;
+  }
+
+  /* Por defecto (nav-dark sobre hero oscuro): mostrar logo oscuro/crema */
+  .logo-img--dark  { display: block; }
+  .logo-img--light { display: none; }
+
+  /* Cuando la nav cambia a modo claro (sobre sección blanca): logo negro */
+  .nav-light .logo-img--dark  { display: none; }
+  .nav-light .logo-img--light { display: block; }
+
+  /* Soporte @media prefers-color-scheme (pantalla del sistema) */
+  @media (prefers-color-scheme: light) {
+    .logo-img--dark  { display: none; }
+    .logo-img--light { display: block; }
+    .nav-dark .logo-img--dark  { display: block; }
+    .nav-dark .logo-img--light { display: none; }
   }
   
   /* CONTENEDOR DE LINKS - "isla" de vidrio */
@@ -306,8 +332,10 @@ const menuItems = [
     }
     
     .logo {
-      font-size: 15px;
-      padding: 10px 18px;
+      padding: 6px 14px;
+    }
+    .logo-img {
+      height: 28px;
     }
   }
 </style>
