@@ -17,8 +17,7 @@ const menuItems = [
 <nav id="mainNav" class="main-nav nav-dark">
   <div class="nav-inner">
     <a href="/" class="logo" aria-label="Estudio ODD">
-      <img src="/logo-dark.svg" alt="Estudio ODD" class="logo-img logo-img--dark" width="120" height="68" />
-      <img src="/logo-light.svg" alt="Estudio ODD" class="logo-img logo-img--light" width="120" height="68" />
+      <img src="/logo-light.svg" alt="Estudio ODD" class="logo-img" width="120" height="68" />
     </a>
     
     <ul class="nav-links" id="navLinks">
@@ -139,22 +138,15 @@ const menuItems = [
     height: 36px;
     width: auto;
     object-fit: contain;
+    /* Logo base: paths negros sobre transparente */
+    /* En nav-dark (sobre hero oscuro) → invertimos a blanco/crema */
+    filter: invert(1) sepia(0.15) saturate(0.8) brightness(1.05);
+    transition: filter 0.5s ease;
   }
 
-  /* Por defecto (nav-dark sobre hero oscuro): mostrar logo oscuro/crema */
-  .logo-img--dark  { display: block; }
-  .logo-img--light { display: none; }
-
-  /* Cuando la nav cambia a modo claro (sobre sección blanca): logo negro */
-  .nav-light .logo-img--dark  { display: none; }
-  .nav-light .logo-img--light { display: block; }
-
-  /* Soporte @media prefers-color-scheme (pantalla del sistema) */
-  @media (prefers-color-scheme: light) {
-    .logo-img--dark  { display: none; }
-    .logo-img--light { display: block; }
-    .nav-dark .logo-img--dark  { display: block; }
-    .nav-dark .logo-img--light { display: none; }
+  /* En nav-light (sobre sección blanca) → paths negros, sin invert */
+  .nav-light .logo-img {
+    filter: none;
   }
   
   /* CONTENEDOR DE LINKS - "isla" de vidrio */

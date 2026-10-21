@@ -1,0 +1,124 @@
+---
+// SplashScreen.astro
+// Intro: fondo negro fullscreen, letras aparecen de a una, fade out suave.
+// Se muestra solo una vez por sesión.
+---
+
+<div id="splash" aria-hidden="true">
+  <div class="splash-content">
+    <div class="splash-estudio">
+      <span>E</span><span>S</span><span>T</span><span>U</span><span>D</span><span>I</span><span>O</span>
+    </div>
+    <div class="splash-odd">
+      <span>O</span><span>D</span><span>D</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const splash = document.getElementById('splash');
+
+  const nav = document.getElementById('mainNav');
+
+  if (sessionStorage.getItem('splashSeen')) {
+    splash?.remove();
+  } else {
+    sessionStorage.setItem('splashSeen', '1');
+
+    // Ocultar nav durante el splash
+    if (nav) nav.style.opacity = '0';
+
+    setTimeout(() => {
+      if (splash) {
+        splash.classList.add('splash-out');
+        // Mostrar nav cuando empieza el fade out
+        if (nav) {
+          nav.style.transition = 'opacity 1.2s ease';
+          nav.style.opacity = '1';
+        }
+        splash.addEventListener('transitionend', () => {
+          splash.remove();
+        }, { once: true });
+      }
+    }, 3400);
+  }
+</script>
+
+<style>
+  #splash {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(14, 14, 14, 0.80);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 2s ease;
+  }
+
+  #splash.splash-out {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .splash-content {
+    text-align: center;
+    line-height: 1;
+  }
+
+  .splash-estudio {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(14px, 2vw, 22px);
+    font-weight: 300;
+    font-style: italic;
+    letter-spacing: 0.55em;
+    color: #E9E1D4;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .splash-odd {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(80px, 16vw, 180px);
+    font-weight: 700;
+    font-style: italic;
+    letter-spacing: -0.02em;
+    color: #E9E1D4;
+    display: flex;
+    justify-content: center;
+  }
+
+  .splash-odd span,
+  .splash-estudio span {
+    opacity: 0;
+    animation: letterIn 0.5s ease forwards;
+  }
+
+  /* ODD primero */
+  .splash-odd span:nth-child(1) { animation-delay: 0.2s; }
+  .splash-odd span:nth-child(2) { animation-delay: 0.5s; }
+  .splash-odd span:nth-child(3) { animation-delay: 0.8s; }
+
+  /* ESTUDIO después */
+  .splash-estudio span:nth-child(1) { animation-delay: 1.3s; }
+  .splash-estudio span:nth-child(2) { animation-delay: 1.4s; }
+  .splash-estudio span:nth-child(3) { animation-delay: 1.5s; }
+  .splash-estudio span:nth-child(4) { animation-delay: 1.6s; }
+  .splash-estudio span:nth-child(5) { animation-delay: 1.7s; }
+  .splash-estudio span:nth-child(6) { animation-delay: 1.8s; }
+  .splash-estudio span:nth-child(7) { animation-delay: 1.9s; }
+
+  @keyframes letterIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .splash-odd span,
+    .splash-estudio span {
+      animation: none;
+      opacity: 1;
+    }
+  }
+</style>
