@@ -1,7 +1,8 @@
 ---
 // WorkGallery.astro
 // Sección completa de obras del sitio.
-// Lee automáticamente todos los proyectos desde src/content/projects/*.md
+// - Primeras 3 obras: grid editorial asimétrico (impacto de presentación)
+// - Resto: grid regular 5 cols con reveal cortina + paginación
 
 import { getCollection } from 'astro:content';
 import ProjectCard from './ProjectCard.astro';
@@ -11,6 +12,11 @@ const allProjects = await getCollection('projects', ({ data }) => {
 });
 
 const projects = allProjects.sort((a, b) => a.data.order - b.data.order);
+
+const heroProjects = projects.slice(0, 3);
+const gridProjects = projects.slice(3);
+
+const ITEMS_PER_PAGE = 10;
 
 const filters = [
   { id: 'all', label: 'Todos' },
@@ -22,7 +28,7 @@ const filters = [
 
 <section id="work" class="work-section">
   <div class="work-container">
-    
+
     <!-- Header de la sección -->
     <header class="work-header">
       <div class="section-number">01 — Obras</div>
@@ -30,7 +36,7 @@ const filters = [
         Proyectos <em>seleccionados</em>
       </h2>
     </header>
-    
+
     <!-- Introducción -->
     <div class="work-intro">
       <div></div>
@@ -38,11 +44,11 @@ const filters = [
         Cada obra nace de una conversación. Escuchamos el terreno, el cliente, el tiempo. Lo que queda es una síntesis de lo esencial.
       </p>
     </div>
-    
+
     <!-- Filtros -->
     <div class="filters">
       {filters.map(filter => (
-        <button 
+        <button
           class:list={['filter-btn', filter.id === 'all' ? 'active' : '']}
           data-filter={filter.id}
         >
@@ -50,77 +56,225 @@ const filters = [
         </button>
       ))}
     </div>
-    
-    <!-- Grid editorial de proyectos -->
-    <div class="work-grid">
-      {projects.map((project, index) => (
-        <div 
-          class="project-wrapper reveal"
-          data-index={index}
-          data-category={project.data.category}
+
+    <!-- Grid editorial asimétrico: primeras 3 obras -->
+    {heroProjects.length > 0 && (
+      <div class="work-hero-grid">
+        {heroProjects.map((project, index) => (
+          <div
+            class="hero-wrapper reveal"
+            data-index={index}
+            data-category={project.data.category}
+          >
+            <ProjectCard
+              slug={project.id}
+              title={project.data.title}
+              category={project.data.category}
+              location={project.data.location.split(',')[0].trim()}
+              year={project.data.year}
+              cover={project.data.cover}
+            />
+          </div>
+        ))}
+      </div>
+    )}
+
+    <!-- Divisor -->
+    {gridProjects.length > 0 && (
+      <div class="section-divider"></div>
+    )}
+
+    <!-- Grid regular paginado: resto de obras -->
+    {gridProjects.length > 0 && (
+      <div class="grid-section">
+        <div
+          class="work-regular-grid"
+          id="regular-grid"
+          data-total={gridProjects.length}
+          data-per-page={ITEMS_PER_PAGE}
         >
-          <ProjectCard 
-            slug={project.id}
-            title={project.data.title}
-            category={project.data.category}
-            location={project.data.location.split(',')[0].trim()}
-            year={project.data.year}
-            cover={project.data.cover}
-          />
+          {gridProjects.map((project, index) => (
+            <div
+              class="grid-item curtain-reveal"
+              data-grid-index={index}
+              data-category={project.data.category}
+              style={`--stagger: ${(index % ITEMS_PER_PAGE) * 60}ms`}
+            >
+              <ProjectCard
+                slug={project.id}
+                title={project.data.title}
+                category={project.data.category}
+                location={project.data.location.split(',')[0].trim()}
+                year={project.data.year}
+                cover={project.data.cover}
+              />
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
-    
+
+        <!-- Paginación -->
+        {gridProjects.length > ITEMS_PER_PAGE && (
+          <nav class="pagination" id="pagination" aria-label="Paginación de proyectos">
+            <button class="page-btn prev-btn" id="prev-btn" disabled>
+              <span>←</span> Anterior
+            </button>
+            <div class="page-numbers" id="page-numbers"></div>
+            <button class="page-btn next-btn" id="next-btn">
+              Siguiente <span>→</span>
+            </button>
+          </nav>
+        )}
+      </div>
+    )}
+
   </div>
 </section>
 
 <script>
-  // Filtros
+  // ── Filtros ──────────────────────────────────────────────────────
   const filterButtons = document.querySelectorAll<HTMLButtonElement>('.filter-btn');
-  const projectWrappers = document.querySelectorAll<HTMLElement>('.project-wrapper');
-  
+
   filterButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       filterButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      
+
       const filter = btn.dataset.filter;
-      
-      projectWrappers.forEach(wrapper => {
-        if (filter === 'all' || wrapper.dataset.category === filter) {
-          wrapper.classList.remove('hidden-filter');
-        } else {
-          wrapper.classList.add('hidden-filter');
-        }
+
+      // Filtrar hero
+      document.querySelectorAll<HTMLElement>('.hero-wrapper').forEach(wrapper => {
+        wrapper.style.display =
+          filter === 'all' || wrapper.dataset.category === filter ? '' : 'none';
       });
+
+      // Filtrar grid regular y resetear paginación
+      currentFilter = filter || 'all';
+      currentPage = 0;
+      renderPage();
     });
   });
-  
-  // Animación de aparición al hacer scroll
-  const observer = new IntersectionObserver((entries) => {
+
+  // ── Paginación ───────────────────────────────────────────────────
+  const gridEl = document.getElementById('regular-grid');
+  const paginationEl = document.getElementById('pagination');
+  const prevBtn = document.getElementById('prev-btn') as HTMLButtonElement | null;
+  const nextBtn = document.getElementById('next-btn') as HTMLButtonElement | null;
+  const pageNumbersEl = document.getElementById('page-numbers');
+
+  let currentPage = 0;
+  let currentFilter = 'all';
+  const ITEMS = parseInt(gridEl?.dataset.perPage || '10', 10);
+
+  function getVisibleItems(): HTMLElement[] {
+    if (!gridEl) return [];
+    return Array.from(gridEl.querySelectorAll<HTMLElement>('.grid-item')).filter(el =>
+      currentFilter === 'all' || el.dataset.category === currentFilter
+    );
+  }
+
+  function renderPage() {
+    const items = getVisibleItems();
+    const totalPages = Math.ceil(items.length / ITEMS);
+
+    // Ocultar todos
+    if (gridEl) {
+      gridEl.querySelectorAll<HTMLElement>('.grid-item').forEach(el => {
+        el.style.display = 'none';
+        el.classList.remove('curtain-visible');
+      });
+    }
+
+    // Mostrar página actual
+    const pageItems = items.slice(currentPage * ITEMS, (currentPage + 1) * ITEMS);
+    pageItems.forEach((el, i) => {
+      el.style.display = '';
+      el.style.setProperty('--stagger', `${i * 60}ms`);
+      // Forzar reflow para reiniciar animación
+      void el.offsetWidth;
+      requestAnimationFrame(() => {
+        el.classList.add('curtain-visible');
+      });
+    });
+
+    // Botones prev/next
+    if (prevBtn) prevBtn.disabled = currentPage === 0;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages - 1;
+
+    // Números de página
+    if (pageNumbersEl) {
+      pageNumbersEl.innerHTML = '';
+      for (let i = 0; i < totalPages; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'page-num' + (i === currentPage ? ' active' : '');
+        btn.textContent = String(i + 1);
+        btn.addEventListener('click', () => {
+          currentPage = i;
+          renderPage();
+          scrollToGrid();
+        });
+        pageNumbersEl.appendChild(btn);
+      }
+    }
+
+    // Mostrar/ocultar paginación
+    if (paginationEl) {
+      paginationEl.style.display = totalPages <= 1 ? 'none' : '';
+    }
+  }
+
+  function scrollToGrid() {
+    const gridSection = document.querySelector('.section-divider');
+    if (gridSection) {
+      gridSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  prevBtn?.addEventListener('click', () => {
+    if (currentPage > 0) {
+      currentPage--;
+      renderPage();
+      scrollToGrid();
+    }
+  });
+
+  nextBtn?.addEventListener('click', () => {
+    const items = getVisibleItems();
+    const totalPages = Math.ceil(items.length / ITEMS);
+    if (currentPage < totalPages - 1) {
+      currentPage++;
+      renderPage();
+      scrollToGrid();
+    }
+  });
+
+  // Inicializar grid
+  renderPage();
+
+  // ── Reveal hero (scroll) ─────────────────────────────────────────
+  const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         entry.target.classList.add('visible');
       }
     });
-  }, { threshold: 0.15 });
-  
-  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  }, { threshold: 0.12 });
+
+  document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
 </script>
 
 <style>
-  /* Sección principal */
+  /* ── Sección principal ──────────────────────────────────────────── */
   .work-section {
     padding: 140px 48px;
     background: #FFFFFF;
   }
-  
+
   .work-container {
     max-width: 1400px;
     margin: 0 auto;
   }
-  
-  /* Header editorial */
+
+  /* ── Header editorial ───────────────────────────────────────────── */
   .work-header {
     display: flex;
     justify-content: space-between;
@@ -128,14 +282,14 @@ const filters = [
     margin-bottom: 100px;
     gap: 40px;
   }
-  
+
   .section-number {
     font-size: 11px;
     letter-spacing: 0.3em;
     text-transform: uppercase;
     color: #8B8680;
   }
-  
+
   .section-title {
     font-family: var(--font-serif);
     font-size: clamp(40px, 5vw, 72px);
@@ -144,12 +298,12 @@ const filters = [
     letter-spacing: -0.02em;
     color: #1A1A1A;
   }
-  
+
   .section-title em {
     font-style: italic;
   }
-  
-  /* Introducción */
+
+  /* ── Introducción ───────────────────────────────────────────────── */
   .work-intro {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -157,15 +311,15 @@ const filters = [
     margin-bottom: 80px;
     align-items: end;
   }
-  
+
   .work-intro p {
     font-size: 18px;
     line-height: 1.6;
     color: #1A1A1A;
     max-width: 500px;
   }
-  
-  /* Filtros */
+
+  /* ── Filtros ────────────────────────────────────────────────────── */
   .filters {
     display: flex;
     gap: 32px;
@@ -174,9 +328,9 @@ const filters = [
     padding-bottom: 24px;
     overflow-x: auto;
   }
-  
+
   .filters::-webkit-scrollbar { display: none; }
-  
+
   .filter-btn {
     background: none;
     border: none;
@@ -191,12 +345,12 @@ const filters = [
     position: relative;
     white-space: nowrap;
   }
-  
+
   .filter-btn:hover,
   .filter-btn.active {
     color: #1A1A1A;
   }
-  
+
   .filter-btn.active::after {
     content: '';
     position: absolute;
@@ -206,86 +360,203 @@ const filters = [
     height: 1px;
     background: #1A1A1A;
   }
-  
-  /* Grid editorial asimétrico */
-  .work-grid {
+
+  /* ── Grid editorial asimétrico (hero: primeras 3) ───────────────── */
+  .work-hero-grid {
     display: grid;
     grid-template-columns: repeat(12, 1fr);
     gap: 24px;
+    margin-bottom: 0;
   }
-  
-  .project-wrapper {
+
+  .hero-wrapper {
     opacity: 0;
     transform: translateY(40px);
     transition: opacity 0.9s ease, transform 0.9s ease;
   }
-  
-  .project-wrapper.visible {
+
+  .hero-wrapper.visible {
     opacity: 1;
     transform: translateY(0);
   }
-  
-  .hidden-filter {
-    display: none !important;
-  }
-  
-  /* Posiciones asimétricas del grid */
-  .project-wrapper:nth-child(1) { grid-column: span 7; }
-  .project-wrapper:nth-child(2) { grid-column: span 5; margin-top: 80px; }
-  .project-wrapper:nth-child(3) { grid-column: span 5; }
-  .project-wrapper:nth-child(4) { grid-column: span 7; margin-top: 60px; }
-  .project-wrapper:nth-child(5) { grid-column: span 8; }
-  .project-wrapper:nth-child(6) { grid-column: span 4; margin-top: 120px; }
-  
-  /* Aspect ratio para los "grandes" */
-  .project-wrapper:nth-child(1) :global(.project-image),
-  .project-wrapper:nth-child(4) :global(.project-image),
-  .project-wrapper:nth-child(5) :global(.project-image) {
+
+  .hero-wrapper:nth-child(1) { grid-column: span 7; }
+  .hero-wrapper:nth-child(2) { grid-column: span 5; margin-top: 80px; }
+  .hero-wrapper:nth-child(3) { grid-column: span 5; }
+
+  .hero-wrapper:nth-child(1) :global(.project-image),
+  .hero-wrapper:nth-child(2) :global(.project-image) {
     aspect-ratio: 16/10 !important;
   }
-  
-  /* MOBILE */
+
+  /* ── Divisor ────────────────────────────────────────────────────── */
+  .section-divider {
+    margin: 100px 0 80px;
+    border: none;
+    border-top: 1px solid #E8E4DE;
+    scroll-margin-top: 100px;
+  }
+
+  /* ── Grid regular paginado ──────────────────────────────────────── */
+  .grid-section {
+    /* contenedor para el grid + paginación */
+  }
+
+  .work-regular-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2px;
+  }
+
+  /* ── Efecto cortina (clip-path reveal) ──────────────────────────── */
+  .grid-item {
+    overflow: hidden;
+    display: none; /* controlado por JS */
+  }
+
+  .grid-item :global(.project-card) {
+    clip-path: inset(100% 0 0 0);
+    transition: clip-path 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: var(--stagger, 0ms);
+  }
+
+  .grid-item.curtain-visible :global(.project-card) {
+    clip-path: inset(0% 0 0 0);
+  }
+
+  /* ── Paginación ─────────────────────────────────────────────────── */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 80px;
+    padding-top: 32px;
+    border-top: 1px solid #E8E4DE;
+    gap: 24px;
+  }
+
+  .page-btn {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #1A1A1A;
+    cursor: pointer;
+    padding: 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: opacity 0.3s;
+  }
+
+  .page-btn:disabled {
+    opacity: 0.25;
+    cursor: default;
+  }
+
+  .page-btn:not(:disabled):hover {
+    opacity: 0.6;
+  }
+
+  .page-numbers {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .page-num {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    color: #8B8680;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.3s;
+    border-bottom: 1px solid transparent;
+  }
+
+  .page-num:hover {
+    color: #1A1A1A;
+  }
+
+  .page-num.active {
+    color: #1A1A1A;
+    border-bottom-color: #1A1A1A;
+  }
+
+  /* ── MOBILE ─────────────────────────────────────────────────────── */
   @media (max-width: 968px) {
     .work-section {
       padding: 80px 24px;
     }
-    
+
     .work-header {
       flex-direction: column;
       align-items: flex-start;
       gap: 20px;
       margin-bottom: 60px;
     }
-    
+
     .work-intro {
       grid-template-columns: 1fr;
       gap: 30px;
       margin-bottom: 60px;
     }
-    
+
     .work-intro p {
       font-size: 15px;
     }
-    
+
     .filters {
       gap: 22px;
       margin-bottom: 60px;
     }
-    
-    .work-grid {
+
+    /* Hero grid: columna única en mobile */
+    .work-hero-grid {
       grid-template-columns: 1fr;
-      gap: 60px;
+      gap: 40px;
     }
-    
-    .project-wrapper:nth-child(n) {
+
+    .hero-wrapper:nth-child(n) {
       grid-column: span 1;
       margin-top: 0;
     }
-    
-    .project-wrapper:nth-child(1) :global(.project-image),
-    .project-wrapper:nth-child(4) :global(.project-image),
-    .project-wrapper:nth-child(5) :global(.project-image) {
+
+    .hero-wrapper:nth-child(1) :global(.project-image),
+    .hero-wrapper:nth-child(2) :global(.project-image) {
       aspect-ratio: 4/5 !important;
+    }
+
+    /* Grid regular: 2 columnas en mobile */
+    .work-regular-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2px;
+    }
+
+    .section-divider {
+      margin: 60px 0 50px;
+    }
+
+    .pagination {
+      margin-top: 48px;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .work-regular-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>
